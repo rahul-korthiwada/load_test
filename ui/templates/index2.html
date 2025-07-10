@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Load Test Command Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.23.0/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #111827;
+            --card-bg-color: #1f2937;
+            --border-color: #374151;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --tp50-color: #38bdf8;
+            --tp95-color: #fbbf24;
+            --tp99-color: #f87171;
+            --success-color: #34d399;
+            --failure-color: #f87171;
+            --total-color: #9ca3af;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 24px;
+            font-weight: 400;
+        }
+        h1 {
+            text-align: center;
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 2.25rem;
+            margin-bottom: 32px;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+        .secondary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+        }
+        .card {
+            background-color: var(--card-bg-color);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        .expand-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+        }
+        .expand-btn:hover {
+            color: var(--text-primary);
+        }
+        .metrics-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 24px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--text-primary);
+            text-shadow: 0 0 15px var(--glow-color, transparent);
+        }
+        .metric-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            font-weight: 400;
+        }
+        .tp50 { color: var(--tp50-color); --glow-color: var(--tp50-color); }
+        .tp95 { color: var(--tp95-color); --glow-color: var(--tp95-color); }
+        .tp99 { color: var(--tp99-color); --glow-color: var(--tp99-color); }
+        .chart-container {
+            position: relative;
+            flex-grow: 1;
+            min-height: 300px;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            width: 90%;
+            height: 85%;
+            background-color: var(--card-bg-color);
+            padding: 30px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        .close-btn {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--text-secondary);
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+        .close-btn:hover {
+            color: var(--text-primary);
+        }
+        .modal-chart-container {
+            flex-grow: 1;
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <h1>Load Test Command Center</h1>
+
+    <div class="main-grid">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Live Metrics</h2>
+            </div>
+            <div class="metrics-summary">
+                <div><div id="total_requests" class="metric-value">0</div><div class="metric-label">Total Requests</div></div>
+                <div><div id="avg_rps" class="metric-value" style="color: var(--total-color);">0</div><div class="metric-label">Average RPS</div></div>
+                <div><div id="success_count" class="metric-value" style="color: var(--success-color);">0</div><div class="metric-label">Successful</div></div>
+                <div><div id="failure_count" class="metric-value" style="color: var(--failure-color);">0</div><div class="metric-label">Failed</div></div>
+                <div><div id="tp50" class="metric-value tp50">0ms</div><div class="metric-label">TP50</div></div>
+                <div><div id="tp95" class="metric-value tp95">0ms</div><div class="metric-label">TP95</div></div>
+                <div><div id="tp99" class="metric-value tp99">0ms</div><div class="metric-label">TP99</div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Latency Percentiles (ms)</h2>
+                <button class="expand-btn" data-chart="latencyChart">⛶</button>
+            </div>
+            <div class="chart-container"><canvas id="latencyChart"></canvas></div>
+        </div>
+    </div>
+    
+    <div class="secondary-grid">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Total Requests per Second</h2>
+                <button class="expand-btn" data-chart="totalReqChart">⛶</button>
+            </div>
+            <div class="chart-container"><canvas id="totalReqChart"></canvas></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Successful Requests per Second</h2>
+                <button class="expand-btn" data-chart="successReqChart">⛶</button>
+            </div>
+            <div class="chart-container"><canvas id="successReqChart"></canvas></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Failed Requests per Second</h2>
+                <button class="expand-btn" data-chart="failedReqChart">⛶</button>
+            </div>
+            <div class="chart-container"><canvas id="failedReqChart"></canvas></div>
+        </div>
+    </div>
+
+    <div id="chartModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle" class="modal-title"></h2>
+                <button id="closeModalBtn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-chart-container">
+                <canvas id="modalChartCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chartColors = {
+            tp50: '#38bdf8', tp95: '#fbbf24', tp99: '#f87171',
+            success: '#34d399', failure: '#f87171', total: '#9ca3af',
+            textPrimary: '#f9fafb', textSecondary: '#9ca3af', grid: 'rgba(255, 255, 255, 0.1)'
+        };
+
+        const commonChartOptions = {
+            scales: {
+                x: { type: 'time', time: { unit: 'second', displayFormats: { second: 'h:mm:ss a' } }, grid: { color: chartColors.grid }, ticks: { color: chartColors.textSecondary, font: { weight: '400' } } },
+                y: { beginAtZero: true, grid: { color: chartColors.grid }, ticks: { color: chartColors.textSecondary, font: { weight: '400' } } }
+            },
+            plugins: { legend: { labels: { color: chartColors.textPrimary, font: { weight: '600' } } } },
+            animation: false, maintainAspectRatio: false
+        };
+
+        function createChart(canvasId, datasets) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            return new Chart(ctx, { type: 'line', data: { datasets }, options: commonChartOptions });
+        }
+
+        const charts = {
+            latencyChart: createChart('latencyChart', [
+                { label: 'TP50', data: [], borderColor: chartColors.tp50, tension: 0.2, pointRadius: 0, borderWidth: 2.5, fill: true, backgroundColor: 'rgba(56, 189, 248, 0.05)' },
+                { label: 'TP95', data: [], borderColor: chartColors.tp95, tension: 0.2, pointRadius: 0, borderWidth: 2.5, fill: true, backgroundColor: 'rgba(251, 191, 36, 0.05)' },
+                { label: 'TP99', data: [], borderColor: chartColors.tp99, tension: 0.2, pointRadius: 0, borderWidth: 2.5, fill: true, backgroundColor: 'rgba(248, 113, 113, 0.05)' }
+            ]),
+            totalReqChart: createChart('totalReqChart', [{ label: 'Total RPS', data: [], borderColor: chartColors.total, tension: 0.2, pointRadius: 0, borderWidth: 2 }]),
+            successReqChart: createChart('successReqChart', [{ label: 'Success RPS', data: [], borderColor: chartColors.success, tension: 0.2, pointRadius: 0, borderWidth: 2 }]),
+            failedReqChart: createChart('failedReqChart', [{ label: 'Failure RPS', data: [], borderColor: chartColors.failure, tension: 0.2, pointRadius: 0, borderWidth: 2 }])
+        };
+
+        let testConfigured = false;
+
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/data');
+                if (!response.ok) return;
+                const data = await response.json();
+
+                if (!data || !data.metrics) return;
+
+                if (data.test_config && data.test_config.start_time && !testConfigured) {
+                    const { start_time, duration } = data.test_config;
+                    const startTime = new Date(start_time * 1000);
+                    const endTime = new Date((start_time + duration) * 1000);
+                    
+                    Object.values(charts).forEach(chart => {
+                        chart.data.datasets.forEach(dataset => dataset.data = []);
+                        chart.options.scales.x.min = startTime;
+                        chart.options.scales.x.max = endTime;
+                    });
+                    testConfigured = true;
+                }
+                
+                const { metrics } = data;
+                document.getElementById('total_requests').innerText = metrics.total_requests;
+                document.getElementById('success_count').innerText = metrics.success_count;
+                document.getElementById('failure_count').innerText = metrics.failure_count;
+                document.getElementById('avg_rps').innerText = metrics.avg_rps.toFixed(2);
+                document.getElementById('tp50').innerText = `${Math.round(metrics.tp50)}ms`;
+                document.getElementById('tp95').innerText = `${Math.round(metrics.tp95)}ms`;
+                document.getElementById('tp99').innerText = `${Math.round(metrics.tp99)}ms`;
+
+                const now = Date.now();
+                charts.latencyChart.data.datasets[0].data.push({ x: now, y: metrics.tp50 });
+                charts.latencyChart.data.datasets[1].data.push({ x: now, y: metrics.tp95 });
+                charts.latencyChart.data.datasets[2].data.push({ x: now, y: metrics.tp99 });
+                charts.totalReqChart.data.datasets[0].data.push({ x: now, y: metrics.total_rps });
+                charts.successReqChart.data.datasets[0].data.push({ x: now, y: metrics.success_rps });
+                charts.failedReqChart.data.datasets[0].data.push({ x: now, y: metrics.failure_rps });
+
+                Object.values(charts).forEach(chart => chart.update('none'));
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        setInterval(fetchData, 1000);
+
+        // --- Modal Logic ---
+        const modal = document.getElementById('chartModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalTitle = document.getElementById('modalTitle');
+        let modalChart = null;
+
+        document.querySelectorAll('.expand-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const chartId = button.dataset.chart;
+                const sourceChart = charts[chartId];
+                const chartTitle = button.parentElement.querySelector('.card-title').innerText;
+                
+                modalTitle.innerText = chartTitle;
+
+                if (modalChart) modalChart.destroy();
+
+                const modalCtx = document.getElementById('modalChartCanvas').getContext('2d');
+                modalChart = new Chart(modalCtx, {
+                    type: 'line',
+                    data: sourceChart.data,
+                    options: sourceChart.options
+                });
+                
+                modal.style.display = 'flex';
+            });
+        });
+
+        const closeModal = () => modal.style.display = 'none';
+        closeModalBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+        });
+    </script>
+</body>
+</html>

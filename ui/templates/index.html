@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Load Testing Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Dark Theme Variables */
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --bg-quaternary: #222222;
+            --text-primary: #ffffff;
+            --text-secondary: #e0e0e0;
+            --text-tertiary: #a0a0a0;
+            --text-quaternary: #808080;
+            --border-primary: #2a2a2a;
+            --border-secondary: #3a3a3a;
+            --border-tertiary: #4a4a4a;
+            --card-bg: #111111;
+            --card-bg-hover: #1a1a1a;
+            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            --card-shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.8);
+            --modal-overlay: rgba(0, 0, 0, 0.9);
+            
+            /* Status Colors - Enhanced */
+            --success: #00ff88;
+            --success-bg: #0a2818;
+            --success-border: #1a4028;
+            --success-glow: rgba(0, 255, 136, 0.3);
+            
+            --warning: #ffaa00;
+            --warning-bg: #2a1f0a;
+            --warning-border: #4a3f1a;
+            --warning-glow: rgba(255, 170, 0, 0.3);
+            
+            --error: #ff4444;
+            --error-bg: #2a0a0a;
+            --error-border: #4a1a1a;
+            --error-glow: rgba(255, 68, 68, 0.3);
+            
+            --info: #4488ff;
+            --info-bg: #0a1a2a;
+            --info-border: #1a2a4a;
+            --info-glow: rgba(68, 136, 255, 0.3);
+            
+            /* Chart Colors - Professional Dark */
+            --chart-primary: #00aaff;
+            --chart-success: #00ff88;
+            --chart-warning: #ffaa00;
+            --chart-error: #ff4444;
+            --chart-grid: #2a2a2a;
+            --chart-text: #a0a0a0;
+            --chart-bg: rgba(255, 255, 255, 0.02);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: all 0.3s ease;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        /* Header */
+        .header {
+            margin-bottom: 48px;
+        }
+
+        .header-title {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.025em;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-subtitle {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-weight: 400;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        .status-badge.running {
+            background: var(--success-bg);
+            color: var(--success);
+            border: 1px solid var(--success-border);
+        }
+
+        .status-badge.completed {
+            background: var(--info-bg);
+            color: var(--info);
+            border: 1px solid var(--info-border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Connection Status */
+        .connection-status {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            z-index: 1000;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        .connection-status.connected {
+            background: var(--success-bg);
+            color: var(--success);
+            border: 1px solid var(--success-border);
+        }
+
+        .connection-status.disconnected {
+            background: var(--error-bg);
+            color: var(--error);
+            border: 1px solid var(--error-border);
+        }
+
+        .connection-status.loading {
+            background: var(--warning-bg);
+            color: var(--warning);
+            border: 1px solid var(--warning-border);
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-primary);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+            position: relative;
+            backdrop-filter: blur(8px);
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--card-shadow-hover);
+            border-color: var(--border-secondary);
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .metric-icon {
+            font-size: 1.25rem;
+        }
+
+        .metric-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+        }
+
+        .metric-unit {
+            font-size: 0.875rem;
+            color: var(--text-tertiary);
+            font-weight: 500;
+        }
+
+        .metric-change {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+
+        .metric-change.positive {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+
+        .metric-change.negative {
+            background: var(--error-bg);
+            color: var(--error);
+        }
+
+        /* Gauge */
+        .gauge-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 16px auto;
+        }
+
+        .gauge {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(
+                from 0deg,
+                var(--error) 0deg 60deg,
+                var(--warning) 60deg 120deg,
+                var(--success) 120deg 180deg
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: var(--card-shadow);
+        }
+
+        .gauge::before {
+            content: '';
+            position: absolute;
+            width: 75%;
+            height: 75%;
+            background: var(--card-bg);
+            border-radius: 50%;
+            box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.2);
+        }
+
+        .gauge-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .gauge-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .gauge-label {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .gauge-subtitle {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 24px;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-primary);
+            border-radius: 20px;
+            padding: 28px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-secondary), transparent);
+            opacity: 0.5;
+        }
+
+        .chart-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--card-shadow-hover);
+            border-color: var(--border-secondary);
+            background: var(--card-bg-hover);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: left;
+            flex: 1;
+        }
+
+        .chart-fullscreen-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chart-fullscreen-btn:hover {
+            background: var(--bg-quaternary);
+            border-color: var(--border-secondary);
+            color: var(--text-primary);
+            transform: scale(1.05);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            background: var(--chart-bg);
+            border-radius: 12px;
+            padding: 8px;
+        }
+
+        /* Error Message */
+        .error-message {
+            background: var(--error-bg);
+            border: 1px solid var(--error-border);
+            color: var(--error);
+            padding: 16px;
+            border-radius: 12px;
+            margin: 20px 0;
+            display: none;
+            font-weight: 500;
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(8px);
+        }
+
+        .error-message.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Loading States */
+        .loading-skeleton {
+            background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 8px;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--modal-overlay);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-secondary);
+            border-radius: 16px;
+            width: 95vw;
+            height: 90vh;
+            max-width: 1400px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.9);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(20px);
+        }
+
+        .modal-overlay.active .modal-container {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .modal-close-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close-btn:hover {
+            background: var(--error-bg);
+            border-color: var(--error-border);
+            color: var(--error);
+        }
+
+        .modal-content {
+            flex: 1;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-chart-container {
+            flex: 1;
+            position: relative;
+            background: var(--chart-bg);
+            border-radius: 12px;
+            padding: 16px;
+            min-height: 600px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 24px 16px;
+            }
+            
+            .header-title {
+                font-size: 1.875rem;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+
+            .metric-card {
+                padding: 20px;
+            }
+
+            .metric-value {
+                font-size: 2rem;
+            }
+
+            .connection-status {
+                top: 16px;
+                right: 16px;
+                font-size: 0.75rem;
+                padding: 6px 10px;
+            }
+
+            .modal-container {
+                width: 98vw;
+                height: 95vh;
+                border-radius: 8px;
+            }
+
+            .modal-header {
+                padding: 16px 20px;
+            }
+
+            .modal-content {
+                padding: 20px;
+            }
+
+            .modal-title {
+                font-size: 1.25rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-title {
+                font-size: 1.75rem;
+            }
+            
+            .gauge-container {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .gauge-value {
+                font-size: 1.25rem;
+            }
+
+            .chart-header {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .chart-fullscreen-btn {
+                align-self: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Connection Status Indicator -->
+    <div id="connectionStatus" class="connection-status loading">
+        <span id="connectionText">Connecting...</span>
+    </div>
+    
+    <!-- Error Message -->
+    <div id="errorMessage" class="error-message">
+        <strong>Connection Error:</strong> <span id="errorText"></span>
+    </div>
+    
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <h1 class="header-title">Load Testing Dashboard</h1>
+            <p class="header-subtitle">Real-time performance monitoring and analytics</p>
+            <div class="status-badge" id="statusBadge">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="testStatus">Initializing...</span>
+            </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">📊</span>
+                    <span class="metric-title">Total Requests</span>
+                </div>
+                <div class="metric-value" id="totalRequests">0</div>
+                <div class="metric-unit">requests</div>
+                <div class="metric-change positive" id="totalRequestsChange" style="display: none;">
+                    ↗ +0
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">⚡</span>
+                    <span class="metric-title">Average RPS</span>
+                </div>
+                <div class="metric-value" id="avgRps">0.0</div>
+                <div class="metric-unit">req/sec</div>
+                <div class="metric-change positive" id="avgRpsChange" style="display: none;">
+                    ↗ +0.0
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">✅</span>
+                    <span class="metric-title">Success Rate</span>
+                </div>
+                <div class="gauge-container">
+                    <div class="gauge">
+                        <div class="gauge-content">
+                            <div class="gauge-value" id="successRate">0%</div>
+                            <div class="gauge-label">success</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="gauge-subtitle">
+                    <span id="successCount">0</span> successful requests
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">❌</span>
+                    <span class="metric-title">Failed Requests</span>
+                </div>
+                <div class="metric-value" id="failedRequests">0</div>
+                <div class="metric-unit">failures</div>
+                <div class="metric-change negative" id="failedRequestsChange" style="display: none;">
+                    ↗ +0
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-title">TP50 Latency</span>
+                </div>
+                <div class="metric-value" id="tp50">0</div>
+                <div class="metric-unit">ms</div>
+                <div class="metric-change" id="tp50Change" style="display: none;">
+                    → 0ms
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">📈</span>
+                    <span class="metric-title">TP95 Latency</span>
+                </div>
+                <div class="metric-value" id="tp95">0</div>
+                <div class="metric-unit">ms</div>
+                <div class="metric-change" id="tp95Change" style="display: none;">
+                    → 0ms
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">🔥</span>
+                    <span class="metric-title">TP99 Latency</span>
+                </div>
+                <div class="metric-value" id="tp99">0</div>
+                <div class="metric-unit">ms</div>
+                <div class="metric-change" id="tp99Change" style="display: none;">
+                    → 0ms
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">🚀</span>
+                    <span class="metric-title">Current RPS</span>
+                </div>
+                <div class="metric-value" id="totalRps">0</div>
+                <div class="metric-unit">req/sec</div>
+                <div class="metric-change positive" id="totalRpsChange" style="display: none;">
+                    ↗ +0.0
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">Response Time Percentiles</div>
+                    <button class="chart-fullscreen-btn" onclick="openChartModal('latency', 'Response Time Percentiles')">
+                        ⛶
+                    </button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="latencyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">Request Success Rate</div>
+                    <button class="chart-fullscreen-btn" onclick="openChartModal('success', 'Request Success Rate')">
+                        ⛶
+                    </button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="successChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">Total Requests Over Time</div>
+                    <button class="chart-fullscreen-btn" onclick="openChartModal('total', 'Total Requests Over Time')">
+                        ⛶
+                    </button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="totalChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">Failure Rate Trend</div>
+                    <button class="chart-fullscreen-btn" onclick="openChartModal('failure', 'Failure Rate Trend')">
+                        ⛶
+                    </button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="failureChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full-Screen Chart Modal -->
+    <div id="chartModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Chart</div>
+                <button class="modal-close-btn" onclick="closeChartModal()">×</button>
+            </div>
+            <div class="modal-content">
+                <div class="modal-chart-container">
+                    <canvas id="modalChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =================================================================
+        // GLOBAL VARIABLES AND CONFIGURATION
+        // =================================================================
+        
+        let latencyChart, successChart, totalChart, failureChart, modalChartInstance;
+        let chartData = {
+            labels: [],
+            tp50: [],
+            tp95: [],
+            tp99: [],
+            successRate: [],
+            totalRequests: [],
+            failureRate: []
+        };
+        
+        let previousMetrics = {};
+        let isConnected = false;
+        let errorCount = 0;
+        const MAX_DATA_POINTS = 60; // Keep last 60 data points (1 minute)
+        const API_ENDPOINT = 'http://localhost:5000/api/data';
+        const UPDATE_INTERVAL = 1000; // 1 second
+
+        // =================================================================
+        // MODAL FUNCTIONS
+        // =================================================================
+
+        function openChartModal(chartType, title) {
+            console.log(`🖼️ Opening modal for ${chartType} chart`);
+            
+            const modal = document.getElementById('chartModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalCanvas = document.getElementById('modalChart');
+            
+            modalTitle.textContent = title;
+            modal.classList.add('active');
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+            
+            // Create modal chart after a short delay to ensure modal is visible
+            setTimeout(() => {
+                createModalChart(chartType, modalCanvas);
+            }, 100);
+        }
+
+        function closeChartModal() {
+            console.log('🔒 Closing chart modal');
+            
+            const modal = document.getElementById('chartModal');
+            modal.classList.remove('active');
+            
+            // Restore body scroll
+            document.body.style.overflow = 'auto';
+            
+            // Destroy modal chart
+            if (modalChartInstance) {
+                modalChartInstance.destroy();
+                modalChartInstance = null;
+            }
+        }
+
+        function createModalChart(chartType, canvas) {
+            if (modalChartInstance) {
+                modalChartInstance.destroy();
+            }
+
+            const ctx = canvas.getContext('2d');
+            const commonOptions = getCommonChartOptions();
+            
+            // Enhance options for modal (larger text, better visibility)
+            const modalOptions = {
+                ...commonOptions,
+                plugins: {
+                    ...commonOptions.plugins,
+                    legend: {
+                        ...commonOptions.plugins.legend,
+                        labels: {
+                            ...commonOptions.plugins.legend.labels,
+                            font: {
+                                ...commonOptions.plugins.legend.labels.font,
+                                size: 14
+                            }
+                        }
+                    }
+                }
+            };
+
+            switch (chartType) {
+                case 'latency':
+                    modalChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: [...chartData.labels],
+                            datasets: [
+                                {
+                                    label: 'TP50',
+                                    data: [...chartData.tp50],
+                                    borderColor: 'var(--chart-success)',
+                                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                                    tension: 0.4,
+                                    fill: false,
+                                    borderWidth: 3,
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6
+                                },
+                                {
+                                    label: 'TP95',
+                                    data: [...chartData.tp95],
+                                    borderColor: 'var(--chart-warning)',
+                                    backgroundColor: 'rgba(255, 170, 0, 0.1)',
+                                    tension: 0.4,
+                                    fill: false,
+                                    borderWidth: 3,
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6
+                                },
+                                {
+                                    label: 'TP99',
+                                    data: [...chartData.tp99],
+                                    borderColor: 'var(--chart-error)',
+                                    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                                    tension: 0.4,
+                                    fill: false,
+                                    borderWidth: 3,
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6
+                                }
+                            ]
+                        },
+                        options: {
+                            ...modalOptions,
+                            scales: {
+                                ...modalOptions.scales,
+                                y: {
+                                    ...modalOptions.scales.y,
+                                    title: {
+                                        ...modalOptions.scales.y.title,
+                                        text: 'Response Time (ms)'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    break;
+
+                case 'success':
+                    modalChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: [...chartData.labels],
+                            datasets: [{
+                                label: 'Success Rate (%)',
+                                data: [...chartData.successRate],
+                                borderColor: 'var(--chart-success)',
+                                backgroundColor: 'rgba(0, 255, 136, 0.2)',
+                                tension: 0.4,
+                                fill: true,
+                                borderWidth: 4,
+                                pointRadius: 5,
+                                pointHoverRadius: 8
+                            }]
+                        },
+                        options: {
+                            ...modalOptions,
+                            scales: {
+                                ...modalOptions.scales,
+                                y: {
+                                    ...modalOptions.scales.y,
+                                    max: 100,
+                                    title: {
+                                        ...modalOptions.scales.y.title,
+                                        text: 'Success Rate (%)'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    break;
+
+                case 'total':
+                    modalChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: [...chartData.labels],
+                            datasets: [{
+                                label: 'Total Requests',
+                                data: [...chartData.totalRequests],
+                                borderColor: 'var(--chart-primary)',
+                                backgroundColor: 'rgba(0, 170, 255, 0.2)',
+                                tension: 0.4,
+                                fill: true,
+                                borderWidth: 4,
+                                pointRadius: 5,
+                                pointHoverRadius: 8
+                            }]
+                        },
+                        options: {
+                            ...modalOptions,
+                            scales: {
+                                ...modalOptions.scales,
+                                y: {
+                                    ...modalOptions.scales.y,
+                                    title: {
+                                        ...modalOptions.scales.y.title,
+                                        text: 'Total Requests'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    break;
+
+                case 'failure':
+                    modalChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: [...chartData.labels],
+                            datasets: [{
+                                label: 'Failure Rate (req/sec)',
+                                data: [...chartData.failureRate],
+                                borderColor: 'var(--chart-error)',
+                                backgroundColor: 'rgba(255, 68, 68, 0.2)',
+                                tension: 0.4,
+                                fill: true,
+                                borderWidth: 4,
+                                pointRadius: 5,
+                                pointHoverRadius: 8
+                            }]
+                        },
+                        options: {
+                            ...modalOptions,
+                            scales: {
+                                ...modalOptions.scales,
+                                y: {
+                                    ...modalOptions.scales.y,
+                                    title: {
+                                        ...modalOptions.scales.y.title,
+                                        text: 'Failure Rate (req/sec)'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    break;
+            }
+        }
+
+        // =================================================================
+        // CHART INITIALIZATION
+        // =================================================================
+        
+        function getCommonChartOptions() {
+            const gridColor = '#2a2a2a';
+            const textColor = '#a0a0a0';
+            
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: {
+                                family: 'Inter',
+                                size: 12,
+                                weight: 600
+                            },
+                            color: textColor
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(17, 17, 17, 0.95)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: 'rgba(0, 170, 255, 0.5)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        titleFont: {
+                            family: 'Inter',
+                            size: 13,
+                            weight: 600
+                        },
+                        bodyFont: {
+                            family: 'Inter',
+                            size: 12
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            displayFormats: {
+                                second: 'HH:mm:ss'
+                            },
+                            tooltipFormat: 'HH:mm:ss'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time',
+                            font: {
+                                family: 'Inter',
+                                size: 12,
+                                weight: 600
+                            },
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            font: {
+                                family: 'Inter',
+                                size: 11
+                            },
+                            color: textColor
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            font: {
+                                family: 'Inter',
+                                size: 12,
+                                weight: 600
+                            },
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            font: {
+                                family: 'Inter',
+                                size: 11
+                            },
+                            color: textColor
+                        }
+                    }
+                },
+                animation: {
+                    duration: 300,
+                    easing: 'easeInOutQuart'
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            };
+        }
+
+        function initializeCharts() {
+            console.log('🎨 Initializing charts...');
+            
+            const commonOptions = getCommonChartOptions();
+
+            // Latency Chart
+            latencyChart = new Chart(document.getElementById('latencyChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'TP50',
+                            data: [],
+                            borderColor: 'var(--chart-success)',
+                            backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: 'var(--chart-success)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'TP95',
+                            data: [],
+                            borderColor: 'var(--chart-warning)',
+                            backgroundColor: 'rgba(255, 170, 0, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: 'var(--chart-warning)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'TP99',
+                            data: [],
+                            borderColor: 'var(--chart-error)',
+                            backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: 'var(--chart-error)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            title: {
+                                ...commonOptions.scales.y.title,
+                                text: 'Response Time (ms)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Success Chart
+            successChart = new Chart(document.getElementById('successChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Success Rate (%)',
+                        data: [],
+                        borderColor: 'var(--chart-success)',
+                        backgroundColor: 'rgba(0, 255, 136, 0.2)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: 'var(--chart-success)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            max: 100,
+                            title: {
+                                ...commonOptions.scales.y.title,
+                                text: 'Success Rate (%)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Total Chart
+            totalChart = new Chart(document.getElementById('totalChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Total Requests',
+                        data: [],
+                        borderColor: 'var(--chart-primary)',
+                        backgroundColor: 'rgba(0, 170, 255, 0.2)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: 'var(--chart-primary)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            title: {
+                                ...commonOptions.scales.y.title,
+                                text: 'Total Requests'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Failure Chart
+            failureChart = new Chart(document.getElementById('failureChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Failure Rate (req/sec)',
+                        data: [],
+                        borderColor: 'var(--chart-error)',
+                        backgroundColor: 'rgba(255, 68, 68, 0.2)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: 'var(--chart-error)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            title: {
+                                ...commonOptions.scales.y.title,
+                                text: 'Failure Rate (req/sec)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            console.log('✅ Charts initialized successfully');
+        }
+
+        // =================================================================
+        // DATA FETCHING AND API COMMUNICATION
+        // =================================================================
+        
+        async function fetchLoadTestData() {
+            try {
+                console.log('🔄 Fetching data from API...');
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📊 Data received:', data);
+                
+                updateDashboard(data);
+                updateConnectionStatus('connected');
+                errorCount = 0;
+                
+                return data;
+                
+            } catch (error) {
+                errorCount++;
+                console.error('❌ Error fetching data:', error);
+                
+                let errorMessage = 'Unknown error occurred';
+                if (error.name === 'AbortError') {
+                    errorMessage = 'Request timeout - API took too long to respond';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Network error - Check if API server is running on localhost:5000';
+                } else {
+                    errorMessage = error.message;
+                }
+                
+                updateConnectionStatus('disconnected');
+                showError(errorMessage);
+                
+                if (errorCount > 5) {
+                    console.warn('⚠️ Too many consecutive errors, slowing down requests');
+                }
+                
+                throw error;
+            }
+        }
+
+        // =================================================================
+        // UI UPDATE FUNCTIONS
+        // =================================================================
+        
+        function updateDashboard(data) {
+            console.log('🎨 Updating dashboard with new data');
+            
+            const metrics = data.metrics;
+            const testConfig = data.test_config;
+
+            const prevMetrics = { ...previousMetrics };
+            previousMetrics = { ...metrics };
+
+            updateMetricCard('totalRequests', metrics.total_requests, prevMetrics.total_requests);
+            updateMetricCard('avgRps', metrics.avg_rps.toFixed(2), prevMetrics.avg_rps);
+            updateMetricCard('failedRequests', metrics.failure_count, prevMetrics.failure_count);
+            updateMetricCard('tp50', metrics.tp50, prevMetrics.tp50);
+            updateMetricCard('tp95', metrics.tp95, prevMetrics.tp95);
+            updateMetricCard('tp99', metrics.tp99, prevMetrics.tp99);
+            updateMetricCard('totalRps', metrics.total_rps.toFixed(1), prevMetrics.total_rps);
+            updateMetricCard('successCount', metrics.success_count, prevMetrics.success_count);
+
+            const successRate = metrics.total_requests > 0 
+                ? ((metrics.success_count / metrics.total_requests) * 100).toFixed(1)
+                : 0;
+            document.getElementById('successRate').textContent = `${successRate}%`;
+            updateGaugeColor(successRate);
+
+            updateTestStatus(testConfig);
+            updateCharts(metrics);
+            hideError();
+            
+            console.log('🎉 Dashboard updated successfully');
+        }
+        
+        function updateMetricCard(elementId, newValue, previousValue) {
+            const element = document.getElementById(elementId);
+            const changeElement = document.getElementById(elementId + 'Change');
+            
+            if (!element) return;
+            
+            const formattedValue = typeof newValue === 'number' && newValue >= 1000 
+                ? newValue.toLocaleString() 
+                : newValue;
+            
+            element.textContent = formattedValue;
+            
+            if (changeElement && previousValue !== undefined) {
+                const change = newValue - previousValue;
+                if (Math.abs(change) > 0) {
+                    const changeText = change > 0 ? `↗ +${change}` : `↘ ${change}`;
+                    changeElement.textContent = changeText;
+                    changeElement.className = `metric-change ${change > 0 ? 'positive' : 'negative'}`;
+                    changeElement.style.display = 'inline-flex';
+                }
+            }
+        }
+        
+        function updateGaugeColor(successRate) {
+            const gauge = document.querySelector('.gauge');
+            if (!gauge) return;
+            
+            let color = 'var(--chart-error)';
+            if (successRate >= 95) color = 'var(--chart-success)';
+            else if (successRate >= 80) color = 'var(--chart-warning)';
+            
+            gauge.style.background = `conic-gradient(from 0deg, ${color} 0deg ${successRate * 3.6}deg, var(--bg-tertiary) ${successRate * 3.6}deg 360deg)`;
+        }
+        
+        function updateTestStatus(testConfig) {
+            const statusBadge = document.getElementById('statusBadge');
+            const statusElement = document.getElementById('testStatus');
+            const statusDot = document.getElementById('statusDot');
+            
+            if (!statusElement || !statusDot || !statusBadge) return;
+            
+            if (testConfig.test_running) {
+                statusElement.textContent = 'Test Running';
+                statusBadge.className = 'status-badge running';
+            } else {
+                statusElement.textContent = 'Test Completed';
+                statusBadge.className = 'status-badge completed';
+            }
+        }
+
+        function updateCharts(metrics) {
+            console.log('📈 Updating charts with new data');
+            
+            const now = new Date();
+
+            chartData.labels.push(now);
+            chartData.tp50.push(metrics.tp50);
+            chartData.tp95.push(metrics.tp95);
+            chartData.tp99.push(metrics.tp99);
+            chartData.totalRequests.push(metrics.total_requests);
+            chartData.failureRate.push(metrics.failure_rps || 0);
+
+            const successRate = metrics.total_requests > 0 
+                ? (metrics.success_count / metrics.total_requests) * 100
+                : 0;
+            chartData.successRate.push(successRate);
+
+            if (chartData.labels.length > MAX_DATA_POINTS) {
+                Object.keys(chartData).forEach(key => {
+                    chartData[key].shift();
+                });
+            }
+
+            updateChart(latencyChart, [chartData.tp50, chartData.tp95, chartData.tp99]);
+            updateChart(successChart, [chartData.successRate]);
+            updateChart(totalChart, [chartData.totalRequests]);
+            updateChart(failureChart, [chartData.failureRate]);
+        }
+        
+        function updateChart(chart, dataSets) {
+            if (!chart) return;
+            
+            chart.data.labels = [...chartData.labels];
+            dataSets.forEach((dataSet, index) => {
+                if (chart.data.datasets[index]) {
+                    chart.data.datasets[index].data = [...dataSet];
+                }
+            });
+            chart.update('none');
+        }
+
+        // =================================================================
+        // CONNECTION STATUS AND ERROR HANDLING
+        // =================================================================
+        
+        function updateConnectionStatus(status) {
+            const statusElement = document.getElementById('connectionStatus');
+            const textElement = document.getElementById('connectionText');
+            
+            if (!statusElement || !textElement) return;
+            
+            isConnected = status === 'connected';
+            statusElement.className = `connection-status ${status}`;
+            
+            const statusConfig = {
+                connected: { text: '● Connected' },
+                disconnected: { text: '● Disconnected' },
+                loading: { text: '● Connecting...' }
+            };
+            
+            const config = statusConfig[status] || statusConfig.loading;
+            textElement.textContent = config.text;
+            
+            console.log(`🔌 Connection status: ${status}`);
+        }
+        
+        function showError(message) {
+            const errorElement = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            
+            if (!errorElement || !errorText) return;
+            
+            errorText.textContent = message;
+            errorElement.classList.add('show');
+            
+            console.error('🚨 Showing error:', message);
+        }
+        
+        function hideError() {
+            const errorElement = document.getElementById('errorMessage');
+            if (errorElement) {
+                errorElement.classList.remove('show');
+            }
+        }
+
+        // =================================================================
+        // APPLICATION LIFECYCLE
+        // =================================================================
+        
+        function startDataFetching() {
+            console.log('🚀 Starting data fetching...');
+            
+            fetchLoadTestData().catch(() => {
+                console.log('⚠️ Initial fetch failed, will retry...');
+            });
+
+            setInterval(() => {
+                if (errorCount <= 10) {
+                    fetchLoadTestData().catch(() => {
+                        console.log('⚠️ Periodic fetch failed, will retry in next interval...');
+                    });
+                } else {
+                    console.log('⚠️ Too many errors, pausing requests...');
+                    setTimeout(() => {
+                        errorCount = 0;
+                        console.log('🔄 Resuming requests after error cooldown');
+                    }, 10000);
+                }
+            }, UPDATE_INTERVAL);
+        }
+
+        function handleWindowResize() {
+            console.log('📱 Handling window resize');
+            
+            [latencyChart, successChart, totalChart, failureChart].forEach(chart => {
+                if (chart) {
+                    chart.resize();
+                }
+            });
+        }
+
+        // =================================================================
+        // EVENT LISTENERS AND INITIALIZATION
+        // =================================================================
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎯 DOM loaded, initializing dashboard...');
+            
+            updateConnectionStatus('loading');
+            initializeCharts();
+            startDataFetching();
+            
+            console.log('✅ Dashboard initialization complete');
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeChartModal();
+            }
+            
+            if ((event.ctrlKey || event.metaKey) && event.key === 'r' && event.shiftKey) {
+                event.preventDefault();
+                console.log('🔄 Manual refresh triggered');
+                fetchLoadTestData();
+            }
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('chartModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeChartModal();
+            }
+        });
+
+        window.addEventListener('resize', handleWindowResize);
+        
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                console.log('👁️ Page visible, resuming normal operation');
+                errorCount = Math.max(0, errorCount - 1);
+            } else {
+                console.log('🙈 Page hidden, continuing background updates');
+            }
+        });
+        
+        console.log('🎊 World-Class Dark Mode Load Testing Dashboard loaded successfully!');
+        console.log('💡 Pro tip: Use Ctrl+Shift+R to manually refresh data');
+        console.log('🖼️ Pro tip: Click the fullscreen button on any chart to view it in a modal');
+        console.log('📊 Monitoring API endpoint:', API_ENDPOINT);
+    </script>
+</body>
+</html>
