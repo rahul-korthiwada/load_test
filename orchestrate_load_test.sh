@@ -31,25 +31,9 @@ pwd
 if [ -d ".venv" ]; then
     echo "Activating virtual environment..."
     source .venv/bin/activate
-    pip install -r requirements.txt
 else
     echo "Warning: .venv directory not found. Assuming python3 and dependencies are globally available."
 fi
-
-# Start the UI server
-echo "Starting UI server..."
-python3 ./ui/app.py "$DURATION"  > a.log &
-UI_PID=$!
-
-# Wait for the server to be ready
-echo "Waiting for UI server to start..."
-while ! nc -z localhost 5000; do
-  sleep 0.1 # wait for 1/10 of a second before check again
-done
-echo "UI server started."
-
-# Send the start event to the UI server
-# python3 send_start_event.py "$DURATION"
 
 # Check if load_test.py exists
 if [ ! -f "load_test.py" ]; then
@@ -78,9 +62,6 @@ wait
 echo "----------------------------------------------------"
 echo "All load test instances have completed."
 # echo "Generated log files: ${LOG_FILES_ARRAY[*]}"
-
-# Stop the UI from calculating RPS
-python3 stop_test_ui.py
 
 # Call the analysis script if ANALYZE_LOGS is set to true
 if [ "${ANALYZE_LOGS}" = "true" ]; then

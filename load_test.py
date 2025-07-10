@@ -19,6 +19,8 @@ LOG_FILE_PATH = sys.argv[2]
 CONFIG_FILE = sys.argv[3]
 # Default to 5 requests per second if not provided
 REQUESTS_PER_SECOND = int(sys.argv[4]) if len(sys.argv) > 4 else 5
+SERVER_URL = os.environ.get("SERVER_URL", "http://localhost:5000")
+        
 
 # --- Global State ---
 
@@ -109,7 +111,7 @@ async def send_request(session, config):
 def register_with_server():
     """Registers with the server to get a unique request_id."""
     try:
-        response = requests.post("http://localhost:5000/api/register")
+        response = requests.post(f"{SERVER_URL}/api/register")
         response.raise_for_status()
         return response.json()["request_id"]
     except requests.exceptions.RequestException as e:
@@ -120,7 +122,7 @@ def send_data_to_server(request_id, data):
     """Sends a single data point to the server via HTTP POST."""
     try:
         data['request_id'] = request_id
-        requests.post("http://localhost:5000/api/test_data", json=data, timeout=0.5)
+        requests.post(f"{SERVER_URL}/api/test_data", json=data, timeout=0.5)
     except requests.exceptions.RequestException:
         # It's okay if some of these fail, we don't want to slow down the load test
         pass
@@ -128,7 +130,7 @@ def send_data_to_server(request_id, data):
 def shutdown_server(request_id):
     """Sends a shutdown request to the server."""
     try:
-        requests.post("http://localhost:5000/api/shutdown", json={"request_id": request_id}, timeout=0.5)
+        requests.post(f"{SERVER_URL}/api/shutdown", json={"request_id": request_id}, timeout=0.5)
     except requests.exceptions.RequestException:
         pass
 
