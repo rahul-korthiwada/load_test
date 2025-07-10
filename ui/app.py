@@ -31,8 +31,7 @@ def aggregate_metrics_periodically():
         with state_lock:
             if not state['running_requests']:
                 state['test_config']['test_running'] = False
-            else:
-                state['test_config']['test_running'] = True
+                
 
             if not state['test_config']['test_running']:
                 continue
@@ -59,8 +58,11 @@ def aggregate_metrics_periodically():
                 state['metrics'][request_id]['prev_failure'] = state['metrics'][request_id]['failure_count']
 
             # Calculate average RPS
-            # elapsed_time = time.time() - state['test_config']['start_time']
-            avg_rps = total_rate
+            if state['test_config']['start_time'] is not None:
+                elapsed_time = time.time() - state['test_config']['start_time']
+                avg_rps = total_requests / elapsed_time   # Prevent division by zero
+            else:
+                avg_rps = 0
 
             # Calculate percentiles
             tp50 = calculate_percentile(latencies, 0.50)
@@ -73,9 +75,13 @@ def aggregate_metrics_periodically():
                     'total_requests': total_requests,
                     'success_count': success_count,
                     'failure_count': failure_count,
-                    'avg_rps': avg_rps,
-                    'tp50': tp50, 'tp95': tp95, 'tp99': tp99,
-                    'total_rps': total_rate, 'success_rps': success_rate, 'failure_rps': failure_rate,
+                    'avg_rps': round(avg_rps, 2),
+                    'tp50': round(tp50, 2), 
+                    'tp95': round(tp95, 2), 
+                    'tp99': round(tp99, 2),
+                    'total_rps': round(total_rate, 2), 
+                    'success_rps': round(success_rate, 2), 
+                    'failure_rps': round(failure_rate, 2),
                 }
             }
             for request_id in state['metrics']:
@@ -97,6 +103,9 @@ def register():
             'latencies': [], 'prev_total': 0, 'prev_success': 0, 'prev_failure': 0,
         }
         state['running_requests'][request_id] = True
+        if not state['test_config']['test_running'] or state['running_requests'][request_id] == False:
+            state['test_config']['start_time'] = time.time()
+            state['test_config']['test_running'] = True
     return jsonify({"request_id": request_id})
 
 @app.route('/api/shutdown', methods=['POST'])
@@ -124,7 +133,7 @@ def test_data():
         state['metrics'][request_id]['success_count'] = data['success_count']
         state['metrics'][request_id]['failure_count'] = data['failure_count']
         if data.get('latency'):
-            state['metrics'][request_id]['latencies'].append(data['latency'])
+            state['metrics'][request_id]['latencies'] = data['latency']
     return jsonify({"status": "ok"})
 
 @app.route('/api/data')

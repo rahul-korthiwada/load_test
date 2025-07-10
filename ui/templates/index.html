@@ -1426,8 +1426,8 @@
             updateMetricCard('totalRps', metrics.total_rps.toFixed(1), prevMetrics.total_rps);
             updateMetricCard('successCount', metrics.success_count, prevMetrics.success_count);
 
-            const successRate = metrics.total_requests > 0 
-                ? ((metrics.success_count / metrics.total_requests) * 100).toFixed(1)
+            const successRate = ( metrics.success_count + metrics.failure_count) > 0 
+                ? ((metrics.success_count / ( metrics.success_count + metrics.failure_count) ) * 100).toFixed(1)
                 : 0;
             document.getElementById('successRate').textContent = `${successRate}%`;
             updateGaugeColor(successRate);
@@ -1454,7 +1454,7 @@
             if (changeElement && previousValue !== undefined) {
                 const change = newValue - previousValue;
                 if (Math.abs(change) > 0) {
-                    const changeText = change > 0 ? `↗ +${change}` : `↘ ${change}`;
+                    const changeText = change > 0 ? `↗ +${change.toFixed(2)}` : `↘ ${change.toFixed(2)}`;
                     changeElement.textContent = changeText;
                     changeElement.className = `metric-change ${change > 0 ? 'positive' : 'negative'}`;
                     changeElement.style.display = 'inline-flex';
