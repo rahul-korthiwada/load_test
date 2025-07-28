@@ -2,6 +2,7 @@ import sys
 import time
 import threading
 import uuid
+import subprocess
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -140,6 +141,25 @@ def test_data():
 def get_data():
     """Provides the latest data snapshot to the frontend."""
     return jsonify(latest_snapshot)
+
+@app.route('/api/start_test', methods=['POST'])
+def start_test():
+    """Starts the load test."""
+    data = request.get_json()
+    rps = data.get('rps')
+    duration = data.get('duration')
+    if not rps:
+        return jsonify({"status": "error", "message": "RPS value is required"}), 400
+    if not duration:
+        return jsonify({"status": "error", "message": "Duration value is required"}), 400
+
+    command = f"./orchestrate_load_test.sh 1 {duration} ./config.json {rps}"
+    try:
+        # Using Popen for non-blocking execution
+        subprocess.Popen(command, shell=True)
+        return jsonify({"status": "ok", "message": f"Load test started with {rps} RPS for {duration} seconds."})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/stop_test', methods=['POST'])
 def stop_test():

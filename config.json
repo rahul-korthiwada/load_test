@@ -1,9 +1,17 @@
 [
   {
-    "url": "http://18.61.68.249:6379/replication-logs/12346/1000",
+    "url": "https://app.frm.demo.staging.mum.juspay.net/edge/check",
     "headers": {
       "x-request-id": "f038a89d-a973-4f4f-9cfc-feaed78b1111",
       "Connection": "close"
+    },
+    "body" : {
+      "identifiers": [
+        {
+            "id": "1259a83ee151a6519262c8f3fb06a58316c8049fb74b99cf9a2aea85a69a4dd8",
+            "id_type": "MOBILE"
+        }
+    ]
     }
   }
 ]

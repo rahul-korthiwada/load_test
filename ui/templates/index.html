@@ -82,6 +82,9 @@
 
         /* Header */
         .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 48px;
         }
 
@@ -636,6 +639,11 @@
                 <span id="testStatus">Initializing...</span>
             </div>
         </div>
+        <div class="start-test-container" style="display: flex; gap: 10px; align-items: center;">
+            <input type="number" id="rpsInput" placeholder="RPS" style="padding: 10px; width: 80px; border-radius: 8px; border: 1px solid var(--border-primary); background: var(--bg-secondary); color: var(--text-primary);">
+            <input type="number" id="timeInput" placeholder="Time (s)" style="padding: 10px; width: 80px; border-radius: 8px; border: 1px solid var(--border-primary); background: var(--bg-secondary); color: var(--text-primary);">
+            <button onclick="startLoadTest()" style="padding: 10px 20px; border-radius: 8px; border: none; background: var(--success); color: var(--bg-primary); font-weight: 600; cursor: pointer;">Start Test</button>
+        </div>
 
         <!-- Metrics Grid -->
         <div class="metrics-grid">
@@ -810,6 +818,39 @@
     </div>
 
     <script>
+        function startLoadTest() {
+            const rps = document.getElementById('rpsInput').value;
+            const duration = document.getElementById('timeInput').value;
+            if (!rps || rps <= 0) {
+                alert('Please enter a valid RPS value.');
+                return;
+            }
+            if (!duration || duration <= 0) {
+                alert('Please enter a valid duration value.');
+                return;
+            }
+            console.log(`🚀 Starting load test with ${rps} RPS for ${duration} seconds...`);
+            fetch('/api/start_test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ rps: rps, duration: duration }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    alert('Load test started successfully!');
+                } else {
+                    alert(`Error starting load test: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error starting load test:', error);
+                alert('An error occurred while starting the load test.');
+            });
+        }
+
         // =================================================================
         // GLOBAL VARIABLES AND CONFIGURATION
         // =================================================================
@@ -1373,6 +1414,10 @@
                 
                 const data = await response.json();
                 console.log('📊 Data received:', data);
+
+                if (data && Object.keys(data).length === 0){
+                    return data
+                }
                 
                 updateDashboard(data);
                 updateConnectionStatus('connected');
