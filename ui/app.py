@@ -3,6 +3,7 @@ import time
 import threading
 import uuid
 import subprocess
+import os
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -15,6 +16,7 @@ state = {
 }
 latest_snapshot = {}
 state_lock = threading.Lock()
+active_process = None
 
 # --- Business Logic ---
 def calculate_percentile(latencies, percentile):
@@ -92,7 +94,8 @@ def aggregate_metrics_periodically():
 @app.route('/')
 def index():
     """Serves the main dashboard page."""
-    return render_template('index.html')
+    api_url = os.environ.get('API_URL', 'http://localhost:5000')
+    return render_template('index.html', api_url=api_url)
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -145,6 +148,15 @@ def get_data():
 @app.route('/api/start_test', methods=['POST'])
 def start_test():
     """Starts the load test."""
+    global active_process
+    with state_lock:
+        # Reset metrics
+        state['metrics'] = {}
+        state['running_requests'] = {}
+        state['test_config'] = {'start_time': None, 'duration': None, 'test_running': False}
+        global latest_snapshot
+        latest_snapshot = {}
+
     data = request.get_json()
     rps = data.get('rps')
     duration = data.get('duration')
@@ -156,7 +168,7 @@ def start_test():
     command = f"./orchestrate_load_test.sh 1 {duration} ./config.json {rps}"
     try:
         # Using Popen for non-blocking execution
-        subprocess.Popen(command, shell=True)
+        active_process = subprocess.Popen(command, shell=True)
         return jsonify({"status": "ok", "message": f"Load test started with {rps} RPS for {duration} seconds."})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -164,8 +176,22 @@ def start_test():
 @app.route('/api/stop_test', methods=['POST'])
 def stop_test():
     """Stops the test and metric aggregation."""
+    global active_process
     with state_lock:
         state['test_config']['test_running'] = False
+        if active_process:
+            try:
+                active_process.terminate()
+                active_process = None
+                state['metrics'] = {}
+                state['running_requests'] = {}
+                state['test_config'] = {'start_time': None, 'duration': None, 'test_running': False}
+                global latest_snapshot
+                latest_snapshot = {}
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+        
+
     return jsonify({"status": "ok", "message": "Test stopped"})
 
 if __name__ == '__main__':

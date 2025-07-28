@@ -643,6 +643,7 @@
             <input type="number" id="rpsInput" placeholder="RPS" style="padding: 10px; width: 80px; border-radius: 8px; border: 1px solid var(--border-primary); background: var(--bg-secondary); color: var(--text-primary);">
             <input type="number" id="timeInput" placeholder="Time (s)" style="padding: 10px; width: 80px; border-radius: 8px; border: 1px solid var(--border-primary); background: var(--bg-secondary); color: var(--text-primary);">
             <button onclick="startLoadTest()" style="padding: 10px 20px; border-radius: 8px; border: none; background: var(--success); color: var(--bg-primary); font-weight: 600; cursor: pointer;">Start Test</button>
+            <button onclick="stopLoadTest()" style="padding: 10px 20px; border-radius: 8px; border: none; background: var(--error); color: var(--bg-primary); font-weight: 600; cursor: pointer;">Stop Test</button>
         </div>
 
         <!-- Metrics Grid -->
@@ -851,6 +852,25 @@
             });
         }
 
+        function stopLoadTest() {
+            console.log('🛑 Stopping load test...');
+            fetch('/api/stop_test', {
+                method: 'POST',
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    alert('Load test stopped successfully!');
+                } else {
+                    alert(`Error stopping load test: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error stopping load test:', error);
+                alert('An error occurred while stopping the load test.');
+            });
+        }
+
         // =================================================================
         // GLOBAL VARIABLES AND CONFIGURATION
         // =================================================================
@@ -870,7 +890,7 @@
         let isConnected = false;
         let errorCount = 0;
         const MAX_DATA_POINTS = 60; // Keep last 60 data points (1 minute)
-        const API_ENDPOINT = 'http://localhost:5000/api/data';
+        const API_ENDPOINT = '{{ api_url }}/api/data';
         const UPDATE_INTERVAL = 1000; // 1 second
 
         // =================================================================
